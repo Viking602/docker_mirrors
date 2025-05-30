@@ -21,6 +21,8 @@ A Docker registry mirror built with Rust and Actix-web that can proxy requests t
 - Forwards headers and request bodies
 - Modular architecture for easy maintenance and extension
 - Handles both direct registry requests (e.g., /docker/...) and Docker Registry API V2 requests (e.g., /v2/...)
+- Optimized blob handling with automatic authentication and redirect following
+- Improved timeout handling for large blob downloads
 
 ## Project Structure
 
@@ -136,6 +138,44 @@ docker run -p 8080:8080 \
 ```
 
 If Docker Hub credentials are not configured, the mirror will attempt to make anonymous requests, which may be subject to rate limits.
+
+### Advanced Request Handling
+
+The mirror includes optimized handling for various Docker registry requests:
+
+#### Blob Requests (Image Layers)
+
+- Automatic pre-authentication for Docker Hub blob requests
+- Proper handling of redirects with authentication preserved
+- Increased timeouts (5 minutes) for large blob downloads
+- Range requests to help with large blobs and network issues
+- Detailed logging of rate limit headers when 403 errors occur
+- Enhanced CDN fallback mechanism with multiple fallback options:
+  - Primary Cloudflare CDN
+  - Alternative registry.hub.docker.com CDN
+  - Alternative registry-cdn.docker.io CDN
+- Intelligent retry logic with exponential backoff
+- Multiple User-Agent rotation to avoid filtering
+- Last-resort direct download with optimized headers
+- Improved header management with Docker-client compatible headers
+- Automatic retry with authentication for 401 Unauthorized responses
+
+#### Manifest Requests (Image Metadata)
+
+- Automatic authentication for Docker Hub manifest requests
+- Fallback to Docker Hub API for manifest requests that return 403 Forbidden
+- Improved path handling for non-library repositories
+- Comprehensive Accept headers for all manifest formats
+
+If you encounter 403 Forbidden errors or timeouts when pulling images:
+
+1. Configure Docker Hub credentials as described above to avoid rate limits
+2. Check the mirror logs for rate limit information
+3. The mirror will automatically attempt to use multiple alternative sources:
+   - Multiple CDN fallbacks for blob requests with intelligent retry logic
+   - Docker Hub's API for manifest requests
+4. Consider using a caching proxy in front of the mirror for frequently accessed content
+5. If you're still experiencing issues, try pulling the image directly from Docker Hub first, then try through the mirror
 
 ## License
 
