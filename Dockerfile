@@ -1,9 +1,16 @@
 # Use a Rust image for building the application
-FROM rust:1.85.0-slim-bullseye as builder
+FROM rust:1.85.0-slim-bullseye AS builder
 
 # Create a new empty shell project
 WORKDIR /usr/src/docker_mirrors
 COPY . .
+
+# Install build dependencies
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    pkg-config \
+    libssl-dev \
+    build-essential \
+    && rm -rf /var/lib/apt/lists/*
 
 # Build the application with release profile
 RUN cargo build --release
