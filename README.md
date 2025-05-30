@@ -118,6 +118,25 @@ docker pull localhost:8080/docker/username/repository:tag
 
 The supported registries are configured in `src/config/mod.rs`. You can modify this file to add or remove registries.
 
+### Docker Hub Authentication
+
+To access private repositories or avoid rate limits when pulling from Docker Hub, you can configure Docker Hub credentials using environment variables:
+
+```bash
+# When running with Cargo
+export DOCKER_HUB_USERNAME=your_username
+export DOCKER_HUB_PASSWORD=your_password
+./target/release/docker_mirrors
+
+# When running with Docker
+docker run -p 8080:8080 \
+  -e DOCKER_HUB_USERNAME=your_username \
+  -e DOCKER_HUB_PASSWORD=your_password \
+  docker-registry-mirror
+```
+
+If Docker Hub credentials are not configured, the mirror will attempt to make anonymous requests, which may be subject to rate limits.
+
 ## License
 
 MIT
