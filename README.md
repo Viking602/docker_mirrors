@@ -47,7 +47,7 @@ cargo build --release
 
 ### Using Docker
 
-#### Building the Docker image
+#### Building the Docker image locally
 
 ```bash
 docker build -t docker-registry-mirror .
@@ -57,6 +57,15 @@ docker build -t docker-registry-mirror .
 
 ```bash
 docker run -p 8080:8080 docker-registry-mirror
+```
+
+#### Using pre-built image from GitHub Container Registry
+
+You can also pull the pre-built image from GitHub Container Registry:
+
+```bash
+docker pull ghcr.io/Viking602/docker_mirrors:latest
+docker run -p 8080:8080 ghcr.io/Viking602/docker_mirrors:latest
 ```
 
 The server will start on `0.0.0.0:8080`.
