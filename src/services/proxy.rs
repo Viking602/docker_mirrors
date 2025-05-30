@@ -26,22 +26,42 @@ impl ProxyService {
         body: Option<Bytes>,
         method: &str,
     ) -> Result<Response, Box<dyn Error>> {
-        let registry_url = match self.config.get_registry_url(registry_key) {
-            Some(url) => url,
-            None => {
-                error!("Unsupported registry: {}", registry_key);
-                return Err(format!("Unsupported registry: {}", registry_key).into());
+        // Special case for v2 API requests - forward to Docker Hub
+        let registry_url = if registry_key == "v2" {
+            info!("Detected v2 API request, forwarding to Docker Hub");
+            "registry-1.docker.io"
+        } else {
+            match self.config.get_registry_url(registry_key) {
+                Some(url) => url,
+                None => {
+                    error!("Unsupported registry: {}", registry_key);
+                    return Err(format!("Unsupported registry: {}", registry_key).into());
+                }
             }
         };
 
         // For Docker Hub, ensure the path is correctly formatted for the Docker Registry API V2
-        let formatted_path = if registry_url == "registry-1.docker.io" && !path.starts_with("/v2") {
-            if path.starts_with("/library/") {
-                format!("/v2{}", path)
-            } else if path.starts_with("/") && !path.starts_with("/v2/") {
-                format!("/v2/library{}", path)
+        let formatted_path = if registry_url == "registry-1.docker.io" {
+            if registry_key == "v2" {
+                // For v2 API requests, the path is already relative to /v2
+                // So we need to ensure it starts with /v2
+                if path == "/" {
+                    // Special case for /v2/ API endpoint
+                    "/v2/".to_string()
+                } else {
+                    format!("/v2{}", path)
+                }
+            } else if !path.starts_with("/v2") {
+                // For regular Docker Hub requests, ensure the path starts with /v2
+                if path.starts_with("/library/") {
+                    format!("/v2{}", path)
+                } else if path.starts_with("/") && !path.starts_with("/v2/") {
+                    format!("/v2/library{}", path)
+                } else {
+                    format!("/v2/{}", path)
+                }
             } else {
-                format!("/v2/{}", path)
+                path.to_string()
             }
         } else {
             path.to_string()

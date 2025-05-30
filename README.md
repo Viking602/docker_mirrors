@@ -20,6 +20,7 @@ A Docker registry mirror built with Rust and Actix-web that can proxy requests t
 - Supports all HTTP methods (GET, POST, PUT, DELETE, HEAD, PATCH)
 - Forwards headers and request bodies
 - Modular architecture for easy maintenance and extension
+- Handles both direct registry requests (e.g., /docker/...) and Docker Registry API V2 requests (e.g., /v2/...)
 
 ## Project Structure
 
@@ -90,6 +91,8 @@ Then restart the Docker daemon:
 ```bash
 sudo systemctl restart docker
 ```
+
+When configured as a registry mirror, Docker will automatically send requests to the mirror using the Docker Registry API V2 format (e.g., /v2/...). The mirror will recognize these requests and forward them to Docker Hub.
 
 Alternatively, you can pull images directly through the mirror:
 
