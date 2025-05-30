@@ -1,7 +1,7 @@
 use actix_web::{web, HttpRequest, HttpResponse, http::StatusCode};
 use bytes::Bytes;
 use futures::StreamExt;
-use log::error;
+use log::{error, info};
 use crate::services::proxy::ProxyService;
 
 pub async fn handle_registry_request(
@@ -13,6 +13,8 @@ pub async fn handle_registry_request(
 ) -> HttpResponse {
     let (registry_key, path_tail) = path.into_inner();
     let path_str = format!("/{}", path_tail);
+
+    info!("Received request: {} {} for registry: {}", req.method(), req.uri(), registry_key);
 
     // Convert query parameters to string
     let query_string = if !query.is_empty() {
@@ -30,7 +32,9 @@ pub async fn handle_registry_request(
 
     // Get headers
     let mut headers = reqwest::header::HeaderMap::new();
+    info!("Request headers:");
     for (key, value) in req.headers() {
+        info!("  {}: {}", key, value.to_str().unwrap_or_default());
         if let Ok(header_name) = reqwest::header::HeaderName::from_bytes(key.as_str().as_bytes()) {
             if let Ok(header_value) = reqwest::header::HeaderValue::from_str(value.to_str().unwrap_or_default()) {
                 headers.insert(header_name, header_value);

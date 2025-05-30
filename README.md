@@ -64,13 +64,34 @@ docker run -p 8080:8080 docker-registry-mirror
 You can also pull the pre-built image from GitHub Container Registry:
 
 ```bash
+# Using the latest tag
 docker pull ghcr.io/Viking602/docker_mirrors:latest
 docker run -p 8080:8080 ghcr.io/Viking602/docker_mirrors:latest
+
+# Or using the Releases tag
+docker pull ghcr.io/Viking602/docker_mirrors:Releases
+docker run -p 8080:8080 ghcr.io/Viking602/docker_mirrors:Releases
 ```
 
 The server will start on `0.0.0.0:8080`.
 
 ### Making Requests
+
+First, configure Docker to use the mirror by adding the following to your Docker daemon configuration file (usually `/etc/docker/daemon.json`):
+
+```json
+{
+  "registry-mirrors": ["http://localhost:8080"]
+}
+```
+
+Then restart the Docker daemon:
+
+```bash
+sudo systemctl restart docker
+```
+
+Alternatively, you can pull images directly through the mirror:
 
 To pull an image from Docker Hub:
 
@@ -82,6 +103,12 @@ To pull an image from Quay.io:
 
 ```bash
 docker pull localhost:8080/quay/prometheus/prometheus:latest
+```
+
+For non-official Docker Hub images, use the namespace:
+
+```bash
+docker pull localhost:8080/docker/username/repository:tag
 ```
 
 ## Configuration

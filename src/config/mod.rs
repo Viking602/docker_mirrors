@@ -9,7 +9,7 @@ pub struct RegistryConfig {
 impl Default for RegistryConfig {
     fn default() -> Self {
         let mut registries = HashMap::new();
-        registries.insert("docker".to_string(), "docker.io".to_string());
+        registries.insert("docker".to_string(), "registry-1.docker.io".to_string());
         registries.insert("quay".to_string(), "quay.io".to_string());
         registries.insert("gcr".to_string(), "gcr.io".to_string());
         registries.insert("k8s-gcr".to_string(), "k8s.gcr.io".to_string());
