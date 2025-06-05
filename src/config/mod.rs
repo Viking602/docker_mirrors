@@ -8,19 +8,14 @@ pub struct DockerHubCredentials {
     pub password: Option<String>,
 }
 
-impl Default for DockerHubCredentials {
-    fn default() -> Self {
+impl DockerHubCredentials {
+    pub fn from_env() -> Self {
         Self {
             username: env::var("DOCKER_HUB_USERNAME").ok(),
             password: env::var("DOCKER_HUB_PASSWORD").ok(),
         }
     }
-}
 
-impl DockerHubCredentials {
-    pub fn is_configured(&self) -> bool {
-        self.username.is_some() && self.password.is_some()
-    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -29,28 +24,41 @@ pub struct RegistryConfig {
     pub docker_hub_credentials: DockerHubCredentials,
 }
 
-impl Default for RegistryConfig {
-    fn default() -> Self {
+impl RegistryConfig {
+    pub fn new() -> Self {
         let mut registries = HashMap::new();
-        registries.insert("docker".to_string(), "registry-1.docker.io".to_string());
-        registries.insert("quay".to_string(), "quay.io".to_string());
-        registries.insert("gcr".to_string(), "gcr.io".to_string());
-        registries.insert("k8s-gcr".to_string(), "k8s.gcr.io".to_string());
-        registries.insert("k8s".to_string(), "registry.k8s.io".to_string());
-        registries.insert("ghcr".to_string(), "ghcr.io".to_string());
-        registries.insert("cloudsmith".to_string(), "docker.cloudsmith.io".to_string());
-        registries.insert("nvcr".to_string(), "nvcr.io".to_string());
-        registries.insert("gitlab".to_string(), "registry.gitlab.com".to_string());
+        
+        // 默认注册表配置
+        let default_registries = [
+            ("docker", "registry-1.docker.io"),
+            ("quay", "quay.io"),
+            ("gcr", "gcr.io"),
+            ("k8s-gcr", "k8s.gcr.io"),
+            ("k8s", "registry.k8s.io"),
+            ("ghcr", "ghcr.io"),
+            ("cloudsmith", "docker.cloudsmith.io"),
+            ("nvcr", "nvcr.io"),
+            ("gitlab", "registry.gitlab.com"),
+        ];
+
+        for (key, value) in default_registries {
+            registries.insert(key.to_string(), value.to_string());
+        }
 
         Self { 
             registries,
-            docker_hub_credentials: DockerHubCredentials::default(),
+            docker_hub_credentials: DockerHubCredentials::from_env(),
         }
     }
-}
 
-impl RegistryConfig {
     pub fn get_registry_url(&self, registry_key: &str) -> Option<&String> {
         self.registries.get(registry_key)
+    }
+
+}
+
+impl Default for RegistryConfig {
+    fn default() -> Self {
+        Self::new()
     }
 }

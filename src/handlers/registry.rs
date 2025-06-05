@@ -16,64 +16,45 @@ pub async fn handle_registry_request(
 
     info!("Received request: {} {} for registry: {}", req.method(), req.uri(), registry_key);
 
-    // Convert query parameters to string
+    // 构建查询字符串
     let query_string = if !query.is_empty() {
-        let query_pairs: Vec<String> = query
-            .iter()
+        format!("?{}", query.iter()
             .map(|(k, v)| format!("{}={}", k, v))
-            .collect();
-        format!("?{}", query_pairs.join("&"))
+            .collect::<Vec<_>>()
+            .join("&"))
     } else {
         String::new()
     };
 
-    // Get request method
-    let method = req.method().as_str();
-
-    // Get headers
-    let mut headers = reqwest::header::HeaderMap::new();
-    info!("Request headers:");
-    for (key, value) in req.headers() {
-        info!("  {}: {}", key, value.to_str().unwrap_or_default());
-        if let Ok(header_name) = reqwest::header::HeaderName::from_bytes(key.as_str().as_bytes()) {
-            if let Ok(header_value) = reqwest::header::HeaderValue::from_str(value.to_str().unwrap_or_default()) {
-                headers.insert(header_name, header_value);
-            }
-        }
-    }
-
-    // Collect body
+    // 收集请求头
+    let headers = collect_headers(&req);
+    
+    // 收集请求体
     let body_bytes = match collect_body(body).await {
-        Ok(bytes) => {
-            if bytes.is_empty() {
-                None
-            } else {
-                Some(bytes)
-            }
-        },
+        Ok(bytes) if !bytes.is_empty() => Some(bytes),
+        Ok(_) => None,
         Err(e) => {
             error!("Failed to read request body: {}", e);
             return HttpResponse::InternalServerError().body(format!("Failed to read request body: {}", e));
         }
     };
 
-    // Forward request
+    // 转发请求
     match proxy_service.forward_request(
         &registry_key,
         &path_str,
         if query_string.is_empty() { None } else { Some(&query_string) },
         headers,
         body_bytes,
-        method,
+        req.method().as_str(),
     ).await {
         Ok(response) => {
             let status = response.status();
             info!("Upstream response status: {}", status);
             
-            // 创建一个新的 HttpResponse，使用上游服务器的状态码
             let mut builder = HttpResponse::build(StatusCode::from_u16(status.as_u16()).unwrap_or(StatusCode::INTERNAL_SERVER_ERROR));
 
-            // 复制所有响应头
+            // 复制响应头
             for (key, value) in response.headers() {
                 if let Ok(header_name) = actix_web::http::header::HeaderName::from_bytes(key.as_str().as_bytes()) {
                     if let Ok(header_value) = actix_web::http::header::HeaderValue::from_bytes(value.as_bytes()) {
@@ -82,13 +63,12 @@ pub async fn handle_registry_request(
                 }
             }
 
-            // 获取响应体
+            // 处理响应体
             match response.bytes().await {
                 Ok(bytes) => {
                     if status.is_success() {
                         builder.body(bytes)
                     } else {
-                        // 对于非成功状态码，确保返回错误信息
                         let error_body = if bytes.is_empty() {
                             format!("Upstream error: {}", status)
                         } else {
@@ -110,11 +90,22 @@ pub async fn handle_registry_request(
     }
 }
 
+fn collect_headers(req: &HttpRequest) -> reqwest::header::HeaderMap {
+    let mut headers = reqwest::header::HeaderMap::new();
+    for (key, value) in req.headers() {
+        if let Ok(header_name) = reqwest::header::HeaderName::from_bytes(key.as_str().as_bytes()) {
+            if let Ok(header_value) = reqwest::header::HeaderValue::from_str(value.to_str().unwrap_or_default()) {
+                headers.insert(header_name, header_value);
+            }
+        }
+    }
+    headers
+}
+
 async fn collect_body(mut body: web::Payload) -> Result<Bytes, Box<dyn std::error::Error>> {
     let mut bytes = web::BytesMut::new();
     while let Some(chunk) = body.next().await {
-        let chunk = chunk?;
-        bytes.extend_from_slice(&chunk);
+        bytes.extend_from_slice(&chunk?);
     }
     Ok(bytes.freeze())
 }
