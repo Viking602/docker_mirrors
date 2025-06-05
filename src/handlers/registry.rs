@@ -68,16 +68,35 @@ pub async fn handle_registry_request(
     ).await {
         Ok(response) => {
             let status = response.status();
-            let mut builder = HttpResponse::build(StatusCode::from_u16(status.as_u16()).unwrap_or(StatusCode::OK));
+            info!("Upstream response status: {}", status);
+            
+            // 创建一个新的 HttpResponse，使用上游服务器的状态码
+            let mut builder = HttpResponse::build(StatusCode::from_u16(status.as_u16()).unwrap_or(StatusCode::INTERNAL_SERVER_ERROR));
 
-            // Copy headers
+            // 复制所有响应头
             for (key, value) in response.headers() {
-                builder.append_header((key.as_str(), value.to_str().unwrap_or_default()));
+                if let Ok(header_name) = actix_web::http::header::HeaderName::from_bytes(key.as_str().as_bytes()) {
+                    if let Ok(header_value) = actix_web::http::header::HeaderValue::from_bytes(value.as_bytes()) {
+                        builder.append_header((header_name, header_value));
+                    }
+                }
             }
 
-            // Get response body
+            // 获取响应体
             match response.bytes().await {
-                Ok(bytes) => builder.body(bytes),
+                Ok(bytes) => {
+                    if status.is_success() {
+                        builder.body(bytes)
+                    } else {
+                        // 对于非成功状态码，确保返回错误信息
+                        let error_body = if bytes.is_empty() {
+                            format!("Upstream error: {}", status)
+                        } else {
+                            String::from_utf8_lossy(&bytes).to_string()
+                        };
+                        builder.body(error_body)
+                    }
+                },
                 Err(e) => {
                     error!("Failed to read response body: {}", e);
                     HttpResponse::InternalServerError().body(format!("Failed to read response body: {}", e))
